@@ -193,14 +193,26 @@ int main(int argc, char *argv[])
     //	std::cout<<"i= "<<i<<" id= "<<people[i].id<<" stat= "<<people[i].stat<<std::endl;
     //}
     
-    const PS::F32 coef_ema = 0.3;
+    const PS::F64 coef_ema = 0.3;
     PS::DomainInfo dinfo;
     dinfo.initialize(coef_ema);
     //dinfo.setBoundaryCondition(PS::BOUNDARY_CONDITION_OPEN);
-    dinfo.setPosRootDomain(PS::F64vec(0.0), PS::F64vec(1.0));
+    //dinfo.setPosRootDomain(PS::F64vec(0.0), PS::F64vec(1.0));
+    dinfo.setPosRootDomainX(0.0, 1.0);
+    dinfo.setPosRootDomainY(0.0, 1.0);
+    dinfo.setPosRootDomainZ(0.0, 1.0);
+
+
+    std::cerr<<"A) dinfo.getPosRootDomain()= "<<dinfo.getPosRootDomain()<<std::endl;
     
     dinfo.decomposeDomainAll(people);
+
+    std::cerr<<"B) dinfo.getPosRootDomain()= "<<dinfo.getPosRootDomain()<<std::endl;
+    
     people.adjustPositionIntoRootDomain(dinfo);
+
+    std::cerr<<"C) dinfo.getPosRootDomain()= "<<dinfo.getPosRootDomain()<<std::endl;
+
     
     people.exchangeParticle(dinfo);
     n_loc = people.getNumberOfParticleLocal();
@@ -221,21 +233,7 @@ int main(int argc, char *argv[])
     while(t_end > Person::time_sys)
     {
 
-      //fprintf(gp, "plot '-' using 1:2:3:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
-      fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
 
-
-    	for(PS::S32 i = 0; i < n_loc; i++)
-	{
-		fprintf(gp,"%f, %f, %f ",people[i].pos.x, people[i].pos.y, people[i].pos.z);
-		if(people[i].stat == 1)
-			fprintf(gp,"255 0 0 \n");
-		else if(people[i].stat == 2)
-			fprintf(gp,"0 0 255 \n");
-		else
-			fprintf(gp,"0 255 0 \n");
-
-	}
 	tree.calcForceAllAndWriteBack(CalcInteraction, people, dinfo, false);
 	Move(people, dt);
 	Person::time_sys += dt;
@@ -254,8 +252,35 @@ int main(int argc, char *argv[])
 	std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<" |n_removed = "<<n_removed<<std::endl;
 	
 	dinfo.decomposeDomainAll(people);
+
+	std::cerr<<"D) dinfo.getPosRootDomain()= "<<dinfo.getPosRootDomain()<<std::endl;
+	
 	people.adjustPositionIntoRootDomain(dinfo);
+
+	std::cerr<<"dinfo.getPosRootDomain()= "<<dinfo.getPosRootDomain()<<std::endl;
+	for(int i=0; i<people.getNumberOfParticleLocal(); i++){
+	    if( dinfo.getPosRootDomain().notOverlapped(people[i].pos) ){
+		std::cerr<<"i= "<<i<<" people[i].pos= "<<people[i].pos<<std::endl;
+	    }
+	}
+	
 	people.exchangeParticle(dinfo);
+
+
+      //fprintf(gp, "plot '-' using 1:2:3:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
+      fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
+    	for(PS::S32 i = 0; i < n_loc; i++)
+	{
+		fprintf(gp,"%f, %f, %f ",people[i].pos.x, people[i].pos.y, people[i].pos.z);
+		if(people[i].stat == 1)
+			fprintf(gp,"255 0 0 \n");
+		else if(people[i].stat == 2)
+			fprintf(gp,"0 0 255 \n");
+		else
+			fprintf(gp,"0 255 0 \n");
+
+	}
+	
 	fprintf(gp, "e\n");
     }
     pclose(gp);

@@ -1,4 +1,5 @@
-PS_PATH = ../../FDPS/src/ 
+#PS_PATH = ../../FDPS/src/
+PS_PATH = ../../fdps-devel/src/ 
 INC = -I$(PS_PATH)
 
 #CC = time g++
@@ -15,7 +16,6 @@ all: main.out
 
 main.out:main.cpp
 	$(CC) $(INC) $(CFLAGS) -o $@ $^
-	
 clean:
 	rm main.out
 
