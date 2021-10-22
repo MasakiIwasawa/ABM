@@ -1,5 +1,6 @@
 #include<iostream>
 #include<particle_simulator.hpp>
+#include<cstdlib>
 
 struct Person
 {
@@ -154,7 +155,7 @@ PS::S32 CountNInfected(T & people)
     {
 	if(people[i].stat==1)
 	{
-	    std::cerr<<"i= "<<i<<" people[i].id= "<<people[i].id<<std::endl;
+	   // std::cerr<<"i= "<<i<<" people[i].id= "<<people[i].id<<std::endl;
 	    ret++;
 	}
     }
@@ -185,7 +186,8 @@ void setParticlesUniformBox(T &sys,
 {
     sys.setNumberOfParticleLocal(n_loc);
     PS::F64 vol = 1.0;
-    PS::F64 dis_ave = cbrt(vol/(n_loc*PS::Comm::getNumberOfProc()));
+    PS::F64 dens = (n_loc*PS::Comm::getNumberOfProc())/vol;
+    PS::F64 dis_ave = sqrt(vol/(n_loc*PS::Comm::getNumberOfProc()));
     std::cerr<<"dis_ave= "<<dis_ave<<std::endl;
     PS::MTTS mt;
     mt.init_genrand(seed);
@@ -200,8 +202,12 @@ void setParticlesUniformBox(T &sys,
         sys[i].id    = n_loc*PS::Comm::getRank() + i;
         sys[i].r_search = dis_ave * 0.1;
 	//sys[i].r_search = 0.01;
-	std::cerr<<"sys[i].r_search= "<<sys[i].r_search<<std::endl;
+	//std::cerr<<"sys[i].r_search= "<<sys[i].r_search<<std::endl;
     }
+    const auto vel_ave = 0.05;
+    const auto Tcoll = 1.0/(dens * sys[0].r_search * vel_ave);
+    std::cerr<<"Tcoll= "<<Tcoll<<std::endl;
+    //exit(1);
     Person::time_sys = 0.0;
 }
 
@@ -213,9 +219,12 @@ int main(int argc, char *argv[])
     //PS::F64 dt = 1e-3;
     PS::F64 dt = 1e-2;
     //PS::F64 t_end = 0.1;
-    PS::F64 t_end = 10.0;
+    //PS::F64 t_end = 10.0;
+    PS::F64 t_end = 6.3;
    // PS::F64 time_snap = 0.0;
    // PS::S32 id_snap =0;
+   //int r = rand() % 20 +1;
+    int r = 10;
    FILE *gp;
 
    gp=popen("gnuplot -persist","w");
@@ -234,6 +243,8 @@ int main(int argc, char *argv[])
     //for(auto i=0; i<people.getNumberOfParticleLocal(); i++){
     //	std::cout<<"i= "<<i<<" id= "<<people[i].id<<" stat= "<<people[i].stat<<std::endl;
     //}
+    //int xx[n_loc]={0},yy[n_loc]={0},zz[n_loc]={0};
+    //int xx,yy,zz;
     
     const PS::F64 coef_ema = 0.3;
     PS::DomainInfo dinfo;
@@ -255,7 +266,7 @@ int main(int argc, char *argv[])
     for(int i=0; i<n_loc; i++)
     {
 #if 1
-	if(people[i].id < 10){
+	if(people[i].id < r){
 	    people[i].stat = 1;
 	    people[i].t_infected = Person::time_sys;
 	}
@@ -286,12 +297,18 @@ int main(int argc, char *argv[])
     const auto n_infected = CountNInfected(people);
     const auto n_removed = CountNRemoved(people);
 
+    
     std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<std::endl;
     Tree_t tree;
     //tree.initialize(n_loc, 0.5, 1, 1);
     tree.initialize(n_loc);
     while(t_end > Person::time_sys)
     {
+	/*
+	    xx=0;
+	    yy=0;
+	    zz=0;
+	*/
 
 
 	tree.calcForceAllAndWriteBack(CalcInteraction, people, dinfo, false);
@@ -316,7 +333,10 @@ int main(int argc, char *argv[])
 
 		}
 	}
-	std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<" |n_removed = "<<n_removed<<std::endl;
+	std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<" |n_removed = "<<n_removed<<" |other = "<<(int)n_loc-(int)n_infected-(int)n_removed<<" |"<<std::endl;
+  	//fprintf(gp, "set term qt 2\n");
+	//fprintf(gp,"%d,%d,%d \n",(int)n_loc-(int)n_infected-(int)n_removed, n_infected, n_removed);
+
 	
 	dinfo.decomposeDomainAll(people);
 
@@ -325,20 +345,36 @@ int main(int argc, char *argv[])
 	people.exchangeParticle(dinfo);
 
       //fprintf(gp, "plot '-' using 1:2:3:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
-      fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
+  	fprintf(gp, "set term qt 1\n");
+    	fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
     	for(PS::S32 i = 0; i < n_loc; i++)
 	{
 		fprintf(gp,"%f, %f, %f ",people[i].pos.x, people[i].pos.y, people[i].pos.z);
 		if(people[i].stat == 1)
+		{
 			fprintf(gp,"255 0 0 \n");
+			//xx[i]++;
+		}
 		else if(people[i].stat == 2)
+		{
 			fprintf(gp,"0 0 255 \n");
+			//yy[i]++;
+		}
 		else
+		{
 			fprintf(gp,"0 255 0 \n");
+			//zz[i]++;
+		}
 
 	}
+
+	//fprintf(gp,"set term qt 2\n");
+	//fprintf(gp,"plot (int)n_loc-(int)n_infected-(int)n_removed, n_infected, n_removed\n");
+
+
 	fprintf(gp, "e\n");
     }
+
     pclose(gp);
     PS::Finalize();
     return 0;
