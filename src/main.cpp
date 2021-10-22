@@ -61,19 +61,22 @@ void CalcInteraction(const Person pi[],
                      const PS::S32 nj,
                      Person fi[]) 
 {
+    /*
     if(pi[0].id == 1){
 	std::cerr<<"A) nj= "<<nj<<std::endl;
 	for(int j=0; j<nj; j++){
 	    std::cerr<<"pj[j].id= "<<pj[j].id<<" pj[j].pos= "<<pj[j].pos<<std::endl;
 	}
     }
+    */
 
-    
+    /*
     for(int j=0; j<nj; j++){
 	if(pj[j].id == 0){
 	    std::cerr<<"B) pi[0].id= "<<pi[0].id<<" pi[0].pos= "<<pi[0].pos<<std::endl;
 	}
     }
+    */
     Person pj_infected[nj];
     PS::S32 nj_infected = 0;
     for(int j=0; j<nj; j++)
@@ -99,9 +102,9 @@ void CalcInteraction(const Person pi[],
 	//std::cerr<<"pi[i].pos= "<<pi[i].pos<<std::endl;
         for(int j=0; j<nj_infected; j++)
 	{
-	    if(pj_infected[j].id==0){
-		std::cerr<<"i= "<<i<<"pi[i].pos= "<<pi[i].pos<<std::endl;
-	    }
+	    //if(pj_infected[j].id==0){
+	    //	std::cerr<<"i= "<<i<<"pi[i].pos= "<<pi[i].pos<<std::endl;
+	    //}
             const auto r_crit_sq = pj_infected[j].r_search * pj_infected[j].r_search;
             const auto rij_tmp = pi[i].pos - pj_infected[j].pos;
 	    auto rij = rij_tmp;
@@ -188,7 +191,7 @@ void setParticlesUniformBox(T &sys,
     PS::F64 vol = 1.0;
     PS::F64 dens = (n_loc*PS::Comm::getNumberOfProc())/vol;
     PS::F64 dis_ave = sqrt(vol/(n_loc*PS::Comm::getNumberOfProc()));
-    std::cerr<<"dis_ave= "<<dis_ave<<std::endl;
+    //std::cerr<<"dis_ave= "<<dis_ave<<std::endl;
     PS::MTTS mt;
     mt.init_genrand(seed);
     for(PS::S32 i = 0; i < n_loc; i++)
@@ -201,12 +204,13 @@ void setParticlesUniformBox(T &sys,
 	sys[i].vel.z = 0.0;
         sys[i].id    = n_loc*PS::Comm::getRank() + i;
         sys[i].r_search = dis_ave * 0.1;
-	//sys[i].r_search = 0.01;
 	//std::cerr<<"sys[i].r_search= "<<sys[i].r_search<<std::endl;
     }
-    const auto vel_ave = 0.05;
-    const auto Tcoll = 1.0/(dens * sys[0].r_search * vel_ave);
-    std::cerr<<"Tcoll= "<<Tcoll<<std::endl;
+    //const auto vel_ave = 0.05;
+    //const auto Tcoll = 1.0/(dens * sys[0].r_search * vel_ave);
+    //std::cerr<<"Tcoll= "<<Tcoll<<std::endl;
+    //const auto Tcross = sys[0].r_search / vel_ave;
+    //std::cerr<<"Tcross= "<<Tcross<<std::endl;
     //exit(1);
     Person::time_sys = 0.0;
 }
@@ -216,16 +220,17 @@ int main(int argc, char *argv[])
     std::cout<<std::setprecision(15);
     std::cerr<<std::setprecision(15);
     PS::Initialize(argc, argv);
+
     //PS::F64 dt = 1e-3;
-    PS::F64 dt = 1e-2;
+    //PS::F64 dt = 1e-2;
     //PS::F64 t_end = 0.1;
     //PS::F64 t_end = 10.0;
-    PS::F64 t_end = 6.3;
    // PS::F64 time_snap = 0.0;
    // PS::S32 id_snap =0;
    //int r = rand() % 20 +1;
     int r = 10;
-   FILE *gp;
+
+    FILE *gp;
 
    gp=popen("gnuplot -persist","w");
    fprintf(gp,"set xyplane 0\n");
@@ -239,6 +244,18 @@ int main(int argc, char *argv[])
     PS::S64 n_loc = 1000;
     //PS::S64 n_loc = 10;
     setParticlesUniformBox(people, n_loc, PS::Comm::getRank());
+    const auto n_glb = people.getNumberOfParticleGlobal();
+    const auto area = 1.0;
+    const auto vel_ave = 0.05;
+    const auto dens = (PS::F64)n_glb / area;
+    const auto sigma = people[0].r_search * 2.0;
+    const auto t_coll = 1.0 / (dens*sigma*vel_ave);
+    const auto t_end = t_coll * 4.0;
+    const auto t_recover = t_coll * 2.0;
+    const auto dt = sigma / (vel_ave*2.0) * 0.1;
+    std::cout<<"# n_glb= "<<n_glb<<" vel_ave= "<<vel_ave<<" dens= "<<dens<<" sigma= "<<sigma<<" t_coll= "<<t_coll<<" t_end= "<<t_end<<" t_recover= "<<t_recover<<" dt= "<<dt<<std::endl;
+
+    
     //std::cout<<"people.getNumberOfParticleLocal()= "<<people.getNumberOfParticleLocal()<<std::endl;
     //for(auto i=0; i<people.getNumberOfParticleLocal(); i++){
     //	std::cout<<"i= "<<i<<" id= "<<people[i].id<<" stat= "<<people[i].stat<<std::endl;
@@ -302,6 +319,7 @@ int main(int argc, char *argv[])
     Tree_t tree;
     //tree.initialize(n_loc, 0.5, 1, 1);
     tree.initialize(n_loc);
+    PS::S64 n_loop = 0;
     while(t_end > Person::time_sys)
     {
 	/*
@@ -326,13 +344,14 @@ int main(int argc, char *argv[])
 	
 	for(int i=0;i<n_loc; i++)
 	{
-	    if(people[i].stat == 1 && (Person::time_sys - people[i].t_infected) > 3.0)
+	    if(people[i].stat == 1 && (Person::time_sys - people[i].t_infected) > t_recover)
 		//if(0)
 		{
 			people[i].stat = 2;
 
 		}
 	}
+	//std::cout<<" r_search= "<<people[0].r_search<<std::endl;
 	std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<" |n_removed = "<<n_removed<<" |other = "<<(int)n_loc-(int)n_infected-(int)n_removed<<" |"<<std::endl;
   	//fprintf(gp, "set term qt 2\n");
 	//fprintf(gp,"%d,%d,%d \n",(int)n_loc-(int)n_infected-(int)n_removed, n_infected, n_removed);
@@ -344,8 +363,10 @@ int main(int argc, char *argv[])
 
 	people.exchangeParticle(dinfo);
 
-      //fprintf(gp, "plot '-' using 1:2:3:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
-  	fprintf(gp, "set term qt 1\n");
+
+	if(n_loop % 10 == 0){
+	//fprintf(gp, "plot '-' using 1:2:3:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
+  	//fprintf(gp, "set term qt 1\n");
     	fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
     	for(PS::S32 i = 0; i < n_loc; i++)
 	{
@@ -370,9 +391,10 @@ int main(int argc, char *argv[])
 
 	//fprintf(gp,"set term qt 2\n");
 	//fprintf(gp,"plot (int)n_loc-(int)n_infected-(int)n_removed, n_infected, n_removed\n");
-
-
 	fprintf(gp, "e\n");
+	}
+	
+	n_loop++;
     }
 
     pclose(gp);
