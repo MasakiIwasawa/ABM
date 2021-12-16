@@ -1,5 +1,5 @@
-#PS_PATH = ../../FDPS/src/
-PS_PATH = ../../fdps-devel/src/ 
+PS_PATH = ../../FDPS/src/
+#PS_PATH = ../../fdps-devel/src/ 
 INC = -I$(PS_PATH)
 
 #CC = time g++
