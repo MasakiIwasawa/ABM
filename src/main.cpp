@@ -228,7 +228,10 @@ int main(int argc, char *argv[])
    // PS::F64 time_snap = 0.0;
    // PS::S32 id_snap =0;
    //int r = rand() % 20 +1;
-    int r = 10;
+    int r = 100;
+
+	PS::MTTS mt;
+    mt.init_genrand(PS::Comm::getRank());
 
     FILE *gp;
 
@@ -241,7 +244,7 @@ int main(int argc, char *argv[])
     
     PS::ParticleSystem<Person> people;
     people.initialize();
-    PS::S64 n_loc = 1000;
+    PS::S64 n_loc = 10000;
     //PS::S64 n_loc = 10;
     setParticlesUniformBox(people, n_loc, PS::Comm::getRank());
     const auto n_glb = people.getNumberOfParticleGlobal();
@@ -250,9 +253,10 @@ int main(int argc, char *argv[])
     const auto dens = (PS::F64)n_glb / area;
     const auto sigma = people[0].r_search * 2.0;
     const auto t_coll = 1.0 / (dens*sigma*vel_ave);
-    const auto t_end = t_coll * 4.0;
-    const auto t_recover = t_coll * 2.0;
+    const auto t_end = t_coll * 12.0;
+    const auto t_recover = t_coll * 0.5;
     const auto dt = sigma / (vel_ave*2.0) * 0.1;
+    int n=r;
     std::cout<<"# n_glb= "<<n_glb<<" vel_ave= "<<vel_ave<<" dens= "<<dens<<" sigma= "<<sigma<<" t_coll= "<<t_coll<<" t_end= "<<t_end<<" t_recover= "<<t_recover<<" dt= "<<dt<<std::endl;
 
     
@@ -262,6 +266,7 @@ int main(int argc, char *argv[])
     //}
     //int xx[n_loc]={0},yy[n_loc]={0},zz[n_loc]={0};
     //int xx,yy,zz;
+
     
     const PS::F64 coef_ema = 0.3;
     PS::DomainInfo dinfo;
@@ -320,8 +325,14 @@ int main(int argc, char *argv[])
     //tree.initialize(n_loc, 0.5, 1, 1);
     tree.initialize(n_loc);
     PS::S64 n_loop = 0;
-    while(t_end > Person::time_sys)
+    //std::cout<<n<<std::endl;
+
+    //while(n != 0 && t_end > Person::time_sys )
+    while(n != 0)
     {
+
+    //std::cout<<n<<std::endl;
+
 	/*
 	    xx=0;
 	    yy=0;
@@ -341,10 +352,13 @@ int main(int argc, char *argv[])
 	Person::time_sys += dt;
 	const auto n_infected = CountNInfected(people);
 	const auto n_removed = CountNRemoved(people);
+	n=n_infected;
 	
 	for(int i=0;i<n_loc; i++)
 	{
-	    if(people[i].stat == 1 && (Person::time_sys - people[i].t_infected) > t_recover)
+		//people[i].vel.x = 2*(vel_ave*(mt.genrand_res53() -0.5));
+		//people[i].vel.y = 2*(vel_ave*(mt.genrand_res53() -0.5));
+	    	if(people[i].stat == 1 && (Person::time_sys - people[i].t_infected) > t_recover)
 		//if(0)
 		{
 			people[i].stat = 2;
