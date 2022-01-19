@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
    // PS::F64 time_snap = 0.0;
    // PS::S32 id_snap =0;
    //int r = rand() % 20 +1;
-    int r = 100;
+    int r = 10;
 
 	PS::MTTS mt;
     mt.init_genrand(PS::Comm::getRank());
@@ -256,7 +256,8 @@ int main(int argc, char *argv[])
     const auto t_end = t_coll * 12.0;
     const auto t_recover = t_coll * 0.5;
     const auto dt = sigma / (vel_ave*2.0) * 0.1;
-    int n=r;
+    int in=r;
+    int re=0;
     std::cout<<"# n_glb= "<<n_glb<<" vel_ave= "<<vel_ave<<" dens= "<<dens<<" sigma= "<<sigma<<" t_coll= "<<t_coll<<" t_end= "<<t_end<<" t_recover= "<<t_recover<<" dt= "<<dt<<std::endl;
 
     
@@ -328,7 +329,7 @@ int main(int argc, char *argv[])
     //std::cout<<n<<std::endl;
 
     //while(n != 0 && t_end > Person::time_sys )
-    while(n != 0)
+    while(in != 0)
     {
 
     //std::cout<<n<<std::endl;
@@ -352,19 +353,24 @@ int main(int argc, char *argv[])
 	Person::time_sys += dt;
 	const auto n_infected = CountNInfected(people);
 	const auto n_removed = CountNRemoved(people);
-	n=n_infected;
+	in=n_infected;
+	re=n_removed;
 	
 	for(int i=0;i<n_loc; i++)
 	{
-		//people[i].vel.x = 2*(vel_ave*(mt.genrand_res53() -0.5));
-		//people[i].vel.y = 2*(vel_ave*(mt.genrand_res53() -0.5));
 	    	if(people[i].stat == 1 && (Person::time_sys - people[i].t_infected) > t_recover)
 		//if(0)
 		{
 			people[i].stat = 2;
-
 		}
+		if(in+re>n_loc/10)
+		{
+			people[i].vel.x = 2*(vel_ave*(mt.genrand_res53() -0.5));
+			people[i].vel.y = 2*(vel_ave*(mt.genrand_res53() -0.5));
+		}
+
 	}
+
 	//std::cout<<" r_search= "<<people[0].r_search<<std::endl;
 	std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<" |n_removed = "<<n_removed<<" |other = "<<(int)n_loc-(int)n_infected-(int)n_removed<<" |"<<std::endl;
   	//fprintf(gp, "set term qt 2\n");
