@@ -254,10 +254,21 @@ int main(int argc, char *argv[])
     const auto sigma = people[0].r_search * 2.0;
     const auto t_coll = 1.0 / (dens*sigma*vel_ave);
     const auto t_end = t_coll * 12.0;
-    const auto t_recover = t_coll * 0.5;
+    const auto t_recover = t_coll * 3.0;
     const auto dt = sigma / (vel_ave*2.0) * 0.1;
     int in=r;
-    int re=0;
+    double dirx[n_loc]={0.0};
+    double diry[n_loc]={0.0};
+
+    for(int i = 0;i<n_loc;i++)
+    {
+    	dirx[i]=people[i].vel.x;
+	diry[i]=people[i].vel.y;
+
+
+    //std::cout<<i<<" "<<dirx[i]<<" "<<diry[i]<<std::endl;
+    }
+
     std::cout<<"# n_glb= "<<n_glb<<" vel_ave= "<<vel_ave<<" dens= "<<dens<<" sigma= "<<sigma<<" t_coll= "<<t_coll<<" t_end= "<<t_end<<" t_recover= "<<t_recover<<" dt= "<<dt<<std::endl;
 
     
@@ -328,6 +339,7 @@ int main(int argc, char *argv[])
     PS::S64 n_loop = 0;
     //std::cout<<n<<std::endl;
 
+    bool flag_emergency = false;
     //while(n != 0 && t_end > Person::time_sys )
     while(in != 0)
     {
@@ -354,7 +366,6 @@ int main(int argc, char *argv[])
 	const auto n_infected = CountNInfected(people);
 	const auto n_removed = CountNRemoved(people);
 	in=n_infected;
-	re=n_removed;
 	
 	for(int i=0;i<n_loc; i++)
 	{
@@ -363,16 +374,23 @@ int main(int argc, char *argv[])
 		{
 			people[i].stat = 2;
 		}
-		if(in+re>n_loc/10)
-		{
-			people[i].vel.x = 2*(vel_ave*(mt.genrand_res53() -0.5));
-			people[i].vel.y = 2*(vel_ave*(mt.genrand_res53() -0.5));
-		}
-
+	}
+	if(in>=300 && flag_emergency == false)
+	  {
+	    for(int i=0;i<n_loc; i++){
+	      people[i].vel.x = dirx[i]/3.0;
+	      //people[i].vel.x = dirx[i]/2.0;
+	      //people[i].vel.x = 2*(vel_ave*(mt.genrand_res53() -0.5));
+	      people[i].vel.y = diry[i]/3.0;
+	      //people[i].vel.y = diry[i]/2.0;
+	      //people[i].vel.y = 2*(vel_ave*(mt.genrand_res53() -0.5));
+	    }
+	    flag_emergency = true;
 	}
 
 	//std::cout<<" r_search= "<<people[0].r_search<<std::endl;
-	std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<" |n_removed = "<<n_removed<<" |other = "<<(int)n_loc-(int)n_infected-(int)n_removed<<" |"<<std::endl;
+	//std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<" |n_removed = "<<n_removed<<" |other = "<<(int)n_loc-(int)n_infected-(int)n_removed<<" |"<<std::endl;
+	std::cout<<Person::time_sys<<" "<<n_infected<<" "<<n_removed<<" "<<(int)n_loc-(int)n_infected-(int)n_removed<<std::endl;
   	//fprintf(gp, "set term qt 2\n");
 	//fprintf(gp,"%d,%d,%d \n",(int)n_loc-(int)n_infected-(int)n_removed, n_infected, n_removed);
 
@@ -390,7 +408,7 @@ int main(int argc, char *argv[])
     	fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
     	for(PS::S32 i = 0; i < n_loc; i++)
 	{
-		fprintf(gp,"%f, %f, %f ",people[i].pos.x, people[i].pos.y, people[i].pos.z);
+		fprintf(gp,"%f, %f, %f ",people[i].pos.x, people[i].pos.y, people[i].pos.z );
 		if(people[i].stat == 1)
 		{
 			fprintf(gp,"255 0 0 \n");
