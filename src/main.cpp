@@ -250,7 +250,8 @@ int main(int argc, char *argv[])
     const auto dens = (PS::F64)n_glb / area;
     const auto sigma = people[0].r_search * 2.0;
     const auto t_coll = 1.0 / (dens*sigma*vel_ave);
-    const auto t_end = t_coll * 4.0;
+    //const auto t_end = t_coll * 4.0;
+    const auto t_end = t_coll * 10.0;
     const auto t_recover = t_coll * 2.0;
     const auto dt = sigma / (vel_ave*2.0) * 0.1;
     std::cout<<"# n_glb= "<<n_glb<<" vel_ave= "<<vel_ave<<" dens= "<<dens<<" sigma= "<<sigma<<" t_coll= "<<t_coll<<" t_end= "<<t_end<<" t_recover= "<<t_recover<<" dt= "<<dt<<std::endl;
