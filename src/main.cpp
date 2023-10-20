@@ -351,6 +351,10 @@ int main(int argc, char *argv[])
 			people[i].stat = 2;
 
 		}
+	    else if(people[i].stat == 2 && (Person::time_sys - (people[i].t_infected + t_recover)) > t_recover)
+	        {
+		        people[i].stat = 0;
+		}
 	}
 	//std::cout<<" r_search= "<<people[0].r_search<<std::endl;
 	std::cout<<"|time_sys = "<<Person::time_sys<<" |n_infected = "<<n_infected<<" |n_removed = "<<n_removed<<" |other = "<<(int)n_loc-(int)n_infected-(int)n_removed<<" |"<<std::endl;
