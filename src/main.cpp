@@ -10,6 +10,7 @@ struct Person
     PS::F64vec vel;
     PS::F64 r_search;
     PS::F64 t_infected;
+    int group_id;
     static inline PS::F64 time_sys;
     static inline PS::F64vec root_length;
     PS::F64vec getPos() const 
@@ -215,6 +216,25 @@ void setParticlesUniformBox(T &sys,
     Person::time_sys = 0.0;
 }
 
+template <typename T>
+void wall(T & people,const PS::S64 n_loc,const PS::F64 dt){
+    //const auto wall1_l,wall1_r,wall1_o,wall1_u;
+    //const auto wall2_l,wall2_r,wall2_o,wall2_u;
+    const auto wall = 0.5;
+    Person hist[n_loc];
+    for(int i=0;i<n_loc;i++){
+	hist[i] = people[i];
+        hist[i].pos = people[i].pos - people[i].vel * dt;
+	if(hist[i].pos.y > wall && people[i].pos.y <= wall){
+            people[i].vel.y = -people[i].vel.y;
+	    people[i].pos.y = wall + (wall - people[i].pos.y);
+	}else if(hist[i].pos.y < wall && people[i].pos.y >= wall){
+	    people[i].vel.y = -people[i].vel.y;
+	    people[i].pos.y = wall + (wall - people[i].pos.y);
+        }	    
+    }
+}
+
 int main(int argc, char *argv[]) 
 {
     std::cout<<std::setprecision(15);
@@ -241,8 +261,8 @@ int main(int argc, char *argv[])
     
     PS::ParticleSystem<Person> people;
     people.initialize();
-    PS::S64 n_loc = 1000;
-    //PS::S64 n_loc = 10;
+    //PS::S64 n_loc = 1000;
+    PS::S64 n_loc = 300;
     setParticlesUniformBox(people, n_loc, PS::Comm::getRank());
     const auto n_glb = people.getNumberOfParticleGlobal();
     const auto area = 1.0;
@@ -366,13 +386,15 @@ int main(int argc, char *argv[])
 
 	people.adjustPositionIntoRootDomain(dinfo);
 
+	wall(people,n_loc,dt);
+
 	people.exchangeParticle(dinfo);
 
 
-	if(n_loop % 10 == 0){
+	if(n_loop % 2 == 0){
 	//fprintf(gp, "plot '-' using 1:2:3:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
   	//fprintf(gp, "set term qt 1\n");
-    	fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 0.8 lc rgb variable\n");
+    	fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 1.0 lc rgb variable\n");
     	for(PS::S32 i = 0; i < n_loc; i++)
 	{
 		fprintf(gp,"%f, %f, %f ",people[i].pos.x, people[i].pos.y, people[i].pos.z);
