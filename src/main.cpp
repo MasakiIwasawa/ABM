@@ -262,7 +262,7 @@ int main(int argc, char *argv[])
     PS::ParticleSystem<Person> people;
     people.initialize();
     //PS::S64 n_loc = 1000;
-    PS::S64 n_loc = 300;
+    PS::S64 n_loc = 100;
     setParticlesUniformBox(people, n_loc, PS::Comm::getRank());
     const auto n_glb = people.getNumberOfParticleGlobal();
     const auto area = 1.0;
