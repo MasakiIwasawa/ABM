@@ -1,7 +1,7 @@
 #include<iostream>
 #include<particle_simulator.hpp>
 #include<cstdlib>
-
+#define DEBUG_LEVEL 1
 struct Person
 {
     PS::S64    id;
@@ -228,11 +228,42 @@ void wall(T & people,const PS::S64 n_loc,const PS::F64 dt){
 	if(hist[i].pos.y > wall && people[i].pos.y <= wall){
             people[i].vel.y = -people[i].vel.y;
 	    people[i].pos.y = wall + (wall - people[i].pos.y);
+#if DEBUG_LEVEL >= 1
+            if(hist[i].pos.y <= wall || people[i].pos.y <= wall){
+                std::cout<<"error1"<<std::endl;
+                std::cout<<"i= "<<i<<" pos= "<<people[i].pos<<" vel="<<people[i].vel<<std::endl;
+                std::cout<<"i= "<<i<<" pos= "<<hist[i].pos<<" vel="<<hist[i].vel<<std::endl;
+            }
+#endif
 	}else if(hist[i].pos.y < wall && people[i].pos.y >= wall){
 	    people[i].vel.y = -people[i].vel.y;
 	    people[i].pos.y = wall + (wall - people[i].pos.y);
-        }	    
+#if DEBUG_LEVEL >= 1
+            if(hist[i].pos.y >= wall || people[i].pos.y >= wall){
+                std::cout<<"error2"<<std::endl;
+                std::cout<<"i= "<<i<<" pos= "<<people[i].pos<<" vel="<<people[i].vel<<std::endl;
+                std::cout<<"i= "<<i<<" pos= "<<hist[i].pos<<" vel="<<hist[i].vel<<std::endl;
+            }
+#endif
+        }
+
     }
+    // for debug
+#if DEBUG_LEVEL >= 1
+    int n_up_loc = 0;
+    int n_dw_loc = 0;
+    for(int i=0;i<n_loc;i++){
+        if(people[i].pos.y >= wall){
+            n_up_loc++;
+        } else {
+            n_dw_loc++;
+        }
+    }
+    int n_up = PS::Comm::getSum(n_up_loc);
+    int n_dw = PS::Comm::getSum(n_dw_loc);
+    std::cout<<"n_up= "<<n_up<<" n_dw= "<<n_dw<<std::endl;
+#endif
+    
 }
 
 int main(int argc, char *argv[]) 
