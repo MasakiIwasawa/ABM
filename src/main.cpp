@@ -1,7 +1,7 @@
 #include<iostream>
 #include<particle_simulator.hpp>
 #include<cstdlib>
-#define DEBUG_LEVEL 1
+#define DEBUG_LEVEL 0
 struct Person
 {
     PS::S64    id;
@@ -415,9 +415,9 @@ int main(int argc, char *argv[])
 	
 	dinfo.decomposeDomainAll(people);
 
-	people.adjustPositionIntoRootDomain(dinfo);
-
 	wall(people,n_loc,dt);
+
+	people.adjustPositionIntoRootDomain(dinfo);
 
 	people.exchangeParticle(dinfo);
 
