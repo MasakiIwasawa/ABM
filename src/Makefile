@@ -6,7 +6,7 @@ INC = -I$(PS_PATH)
 CC = time mpicxx
 CFLAGS = -std=c++17
 CFLAGS += -Wall
-#CFLAGS = -O3
+CFLAGS = -O3
 #CFLAGS += -ffast-math
 #CFLAGS += -funroll-loops
 CFLAGS += -DPARTICLE_SIMULATOR_THREAD_PARALLEL -fopenmp
