@@ -5,14 +5,25 @@
 #define DEBUG_LEVEL 0
 #define INDIVISUAL_WALL
 #define DENSITY_CONTRAST
-constexpr PS::F64 DOMAIN_LENGTH = 1.0;
 constexpr int SEED = 0;
 std::mt19937 RND_ENG(SEED);
 
-constexpr int n_infected_init = 10;
-constexpr PS::F64 DENS_IN_DENS_REGION_NOR = 4.0;
-constexpr PS::F64 DT_INFECTED_NOR = 3.0; // normalized infected duration
-constexpr PS::F64 DT_RECOVERD_NOR = 10.0;
+constexpr PS::F64 DOMAIN_LENGTH = 1.0;
+constexpr PS::F64 DOMAIN_AREA   = DOMAIN_LENGTH * DOMAIN_LENGTH;
+constexpr PS::S64 N_PEOPLE_GLB = 1000;
+constexpr PS::S32 n_infected_init = 3;
+constexpr PS::F64 DENS_IN_DENS_REGION_NOR = 100.0;
+//constexpr PS::F64 DT_INFECTED_NOR = 3.0; // infected duration normalized by t_coll
+constexpr PS::F64 DT_INFECTED_NOR = 0.3; // infected duration normalized by t_coll
+constexpr PS::F64 DT_RECOVERD_NOR = 1.0; // recoverd duration normalized by t_coll
+constexpr PS::F64 LENGTH_DENS_REGION = 0.01;
+constexpr PS::S32 N_DENS_REGION_1D = 2;
+constexpr PS::F64 VEL_AVE = 0.05;
+constexpr PS::F64 R_INFECTED_NOR = 0.05; // infected radius normalized by average particle distance
+
+constexpr auto DENS_GLB = (PS::F64)N_PEOPLE_GLB / DOMAIN_AREA;
+constexpr auto R_INFECTED = R_INFECTED_NOR * sqrt(DOMAIN_AREA / N_PEOPLE_GLB);
+constexpr auto SIGMA = R_INFECTED * 2.0; // cross section
 
 void Reflect(PS::F64 &x, PS::F64 &v, PS::F64 x_min, PS::F64 x_max) {
     auto x_tmp = std::clamp(x, x_min, x_max);
@@ -37,34 +48,31 @@ PS::F64vec GetRandomPos(const PS::F64ort &bnd) {
 
 // 人口密度を変更する.
 template <typename Tsys> void ChangeDensity(Tsys &people) {
-    const auto area_glb = 1.0 * 1.0;
-    const auto n_glb = people.getNumberOfParticleGlobal();
-    const PS::F64 dens_glb = n_glb / area_glb;
-    constexpr PS::S32 n_dens_region_1d = 4;
-    PS::F64ort pos_dens[n_dens_region_1d][n_dens_region_1d];
-    constexpr PS::F64 dx_half = 0.01;
+    //const PS::F64 dens_glb = N_PEOPLE_GLB / DOMAIN_AREA;
+    PS::S32 n_dens_region_2d = N_DENS_REGION_1D * N_DENS_REGION_1D;
+    PS::F64ort pos_dens[N_DENS_REGION_1D][N_DENS_REGION_1D];
+    constexpr PS::F64 dx_half = LENGTH_DENS_REGION;
     const PS::F64 area_dens_region = (dx_half * 2.0) * (dx_half * 2.0);
-    const PS::F64 dens_in_dens_resion = dens_glb * DENS_IN_DENS_REGION_NOR;
-    const PS::S32 n_in_dens_region = dens_in_dens_resion * area_dens_region *
-                                     n_dens_region_1d * n_dens_region_1d;
-    std::cout<<"n_in_dens_region= "<<n_in_dens_region<<std::endl;                                     
-    for (int i = 0; i < n_dens_region_1d; i++) {
-        for (int j = 0; j < n_dens_region_1d; j++) {
-            PS::F64 x_cen = (1.0 / (n_dens_region_1d + 1)) * (i + 1);
-            PS::F64 y_cen = (1.0 / (n_dens_region_1d + 1)) * (j + 1);
+    const PS::F64 dens_in_dens_resion = DENS_GLB * DENS_IN_DENS_REGION_NOR;
+    const PS::S32 n_in_dens_region = dens_in_dens_resion * area_dens_region * n_dens_region_2d;
+    std::cerr<<"n_in_dens_region= "<<n_in_dens_region<<std::endl;
+    for (int i = 0; i < N_DENS_REGION_1D; i++) {
+        for (int j = 0; j < N_DENS_REGION_1D; j++) {
+            PS::F64 x_cen = (1.0 / (N_DENS_REGION_1D + 1)) * (i + 1);
+            PS::F64 y_cen = (1.0 / (N_DENS_REGION_1D + 1)) * (j + 1);
             pos_dens[i][j].low_ =
                 PS::F64vec(x_cen - dx_half, y_cen - dx_half, 0.0);
             pos_dens[i][j].high_ =
                 PS::F64vec(x_cen + dx_half, y_cen + dx_half, 0.0);
-            std::cout << "i= " << i << " j= " << j
+            std::cerr << "i= " << i << " j= " << j
                       << " pos_dens[i][j]= " << pos_dens[i][j] << std::endl;
         }
     }
-    const auto avg_particle_distance = sqrt(1.0 / dens_glb);
+    const auto avg_particle_distance = sqrt(1.0 / DENS_GLB);
     const auto half_wall_length = avg_particle_distance * 2.0;
     const PS::F64vec half_wall_length_vec(half_wall_length);
     const auto n_loc = people.getNumberOfParticleLocal();
-    std::uniform_int_distribution<> rand(0, n_dens_region_1d - 1);
+    std::uniform_int_distribution<> rand(0, N_DENS_REGION_1D - 1);
     for (int i = 0; i < n_in_dens_region; i++) {
         const auto i0 = rand(RND_ENG);
         const auto j0 = rand(RND_ENG);
@@ -276,16 +284,12 @@ using Tree_t =
                      PS::MomentShort, PS::MomentShort, PS::SuperParticleBase>;
 
 template <typename T>
-void setParticlesUniformBox(T &sys, const PS::S64 n_loc,
-                            const PS::S32 seed = 0) {
+void setParticlesUniformBox(T &sys, const PS::S64 n_loc, const PS::S32 seed = 0) {
     sys.setNumberOfParticleLocal(n_loc);
     PS::F64 area = 1.0 * 1.0;
-    PS::F64 dens = (n_loc * PS::Comm::getNumberOfProc()) / area;
-    PS::F64 dis_ave = sqrt(area / (n_loc * PS::Comm::getNumberOfProc()));
+    PS::F64 dens = (n_loc * PS::Comm::getNumberOfProc()) / DOMAIN_AREA;
+    PS::F64 dis_ave = sqrt(DOMAIN_AREA / (n_loc * PS::Comm::getNumberOfProc()));
     std::uniform_real_distribution<double> rand(0.0, 1.0);
-    // std::cerr<<"dis_ave= "<<dis_ave<<std::endl;
-    // PS::MTTS mt;
-    // mt.init_genrand(seed);
     for (PS::S32 i = 0; i < n_loc; i++) {
         sys[i].pos.x = rand(RND_ENG);
         sys[i].pos.y = rand(RND_ENG);
@@ -294,7 +298,7 @@ void setParticlesUniformBox(T &sys, const PS::S64 n_loc,
         sys[i].vel.y = 0.1 * rand(RND_ENG) - 0.05;
         sys[i].vel.z = 0.0;
         sys[i].id = n_loc * PS::Comm::getRank() + i;
-        sys[i].r_search = dis_ave * 0.05;
+        sys[i].r_search = dis_ave * R_INFECTED_NOR;
         sys[i].set_wall();
         // std::cerr<<"sys[i].r_search= "<<sys[i].r_search<<std::endl;
     }
@@ -363,18 +367,9 @@ int main(int argc, char *argv[]) {
     std::cout << std::setprecision(15);
     std::cerr << std::setprecision(15);
     PS::Initialize(argc, argv);
-
-    // PS::F64 dt = 1e-3;
-    // PS::F64 dt = 1e-2;
-    // PS::F64 t_end = 0.1;
-    // PS::F64 t_end = 10.0;
-    // PS::F64 time_snap = 0.0;
-    // PS::S32 id_snap =0;
-    // int r = rand() % 20 +1;
-    
-
+    const auto my_rank = PS::Comm::getRank();
+    const auto n_proc  = PS::Comm::getNumberOfProc();
     FILE *gp;
-
     gp = popen("gnuplot -persist", "w");
     fprintf(gp, "set xyplane 0\n");
     fprintf(gp, "set xrange [0.0:1.0]\n");
@@ -384,25 +379,26 @@ int main(int argc, char *argv[]) {
 
     PS::ParticleSystem<Person> people;
     people.initialize();
-    PS::S64 n_loc = 1000;
+    PS::S64 n_loc = N_PEOPLE_GLB / n_proc;
+    n_loc = (my_rank == n_proc-1) ? N_PEOPLE_GLB - n_loc * (n_proc - 1) : n_loc;
     setParticlesUniformBox(people, n_loc, PS::Comm::getRank());
 #if defined(DENSITY_CONTRAST)
     ChangeDensity(people);
 #endif
     const auto n_glb = people.getNumberOfParticleGlobal();
-    const auto area = 1.0;
-    const auto vel_ave = 0.05;
-    const auto dens = (PS::F64)n_glb / area;
-    const auto sigma = people[0].r_search * 2.0;
-    const auto t_coll = 1.0 / (dens * sigma * vel_ave);
+    //const auto area = 1.0;
+    //const auto vel_ave = 0.05;
+    //const auto dens = (PS::F64)n_glb / area;
+    //const auto sigma = people[0].r_search * 2.0;
+    const auto t_coll = 1.0 / (DENS_GLB * SIGMA * VEL_AVE);
     const auto dt_infected  = DT_INFECTED_NOR * t_coll;
     const auto dt_recoverd = DT_RECOVERD_NOR * t_coll;    
     // const auto t_end = t_coll * 10.0;
     const auto t_end = t_coll * 300.0;
     //const auto t_recover = t_coll * 3.0;
-    const auto dt = sigma / (vel_ave * 2.0) * 0.1;
-    std::cout << "# n_glb= " << n_glb << " vel_ave= " << vel_ave
-              << " dens= " << dens << " sigma= " << sigma
+    const auto dt = SIGMA / (VEL_AVE * 2.0) * 0.1;
+    std::cout << "# n_glb= " << n_glb << " VEL_AVE= " << VEL_AVE
+              << " DENS_GLB= " << DENS_GLB << " SIGMA= " << SIGMA
               << " t_coll= " << t_coll << " t_end= " << t_end
               << " dt_infected= " << dt_infected
               << " dt_recoverd= " << dt_recoverd
@@ -523,7 +519,7 @@ int main(int argc, char *argv[]) {
 
         people.exchangeParticle(dinfo);
 
-        if (n_loop % 10000 == 0) {
+        if (n_loop % 100 == 0) {
             // fprintf(gp, "plot '-' using 1:2:3:(rgb($4,$5,$6)) w p pt 7 ps 0.8
             // lc rgb variable\n"); fprintf(gp, "set term qt 1\n");
             fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 1.0 lc "
