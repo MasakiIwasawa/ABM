@@ -4,20 +4,24 @@
 #include <random>
 #define DEBUG_LEVEL 0
 #define INDIVISUAL_WALL
-#define DENSITY_CONTRAST
+//#define DENSITY_CONTRAST
 constexpr int SEED = 0;
 std::mt19937 RND_ENG(SEED);
 
 constexpr PS::F64 DOMAIN_LENGTH = 1.0;
 constexpr PS::F64 DOMAIN_AREA   = DOMAIN_LENGTH * DOMAIN_LENGTH;
 constexpr PS::S64 N_PEOPLE_GLB = 1000;
+//constexpr PS::S64 N_PEOPLE_GLB = 1000;
 constexpr PS::S32 n_infected_init = 3;
 constexpr PS::F64 DENS_IN_DENS_REGION_NOR = 100.0;
-//constexpr PS::F64 DT_INFECTED_NOR = 3.0; // infected duration normalized by t_coll
-constexpr PS::F64 DT_INFECTED_NOR = 0.3; // infected duration normalized by t_coll
-constexpr PS::F64 DT_RECOVERD_NOR = 1.0; // recoverd duration normalized by t_coll
+constexpr PS::F64 DT_INFECTED_NOR = 1.8; // infected duration normalized by t_coll
+//constexpr PS::F64 DT_INFECTED_NOR = 0.3; // infected duration normalized by t_coll
+constexpr PS::F64 DT_RECOVERD_NOR = 5.0;
+//constexpr PS::F64 DT_RECOVERD_NOR = 1.0; // recoverd duration normalized by t_coll
 constexpr PS::F64 LENGTH_DENS_REGION = 0.01;
-constexpr PS::S32 N_DENS_REGION_1D = 2;
+//constexpr PS::F64 LENGTH_DENS_REGION = 0.01;
+constexpr PS::S32 N_DENS_REGION_1D = 4;
+//constexpr PS::S32 N_DENS_REGION_1D = 2;
 constexpr PS::F64 VEL_AVE = 0.05;
 constexpr PS::F64 R_INFECTED_NOR = 0.05; // infected radius normalized by average particle distance
 
@@ -70,6 +74,7 @@ template <typename Tsys> void ChangeDensity(Tsys &people) {
     }
     const auto avg_particle_distance = sqrt(1.0 / DENS_GLB);
     const auto half_wall_length = avg_particle_distance * 2.0;
+    //const auto half_wall_length = avg_particle_distance * 2.0;
     const PS::F64vec half_wall_length_vec(half_wall_length);
     const auto n_loc = people.getNumberOfParticleLocal();
     std::uniform_int_distribution<> rand(0, N_DENS_REGION_1D - 1);
@@ -370,6 +375,11 @@ int main(int argc, char *argv[]) {
     const auto my_rank = PS::Comm::getRank();
     const auto n_proc  = PS::Comm::getNumberOfProc();
     FILE *gp;
+#if defined(DENSITY_CONTRAST)
+    FILE *fp = fopen("excel.csv","w");
+#else
+    FILE *fp = fopen("excel_org.csv","w");
+#endif
     gp = popen("gnuplot -persist", "w");
     fprintf(gp, "set xyplane 0\n");
     fprintf(gp, "set xrange [0.0:1.0]\n");
@@ -502,14 +512,18 @@ int main(int argc, char *argv[]) {
             }
         }
         // std::cout<<" r_search= "<<people[0].r_search<<std::endl;
-        std::cout << "|time_sys = " << Person::time_sys
-                  << " |n_infected = " << n_infected
-                  << " |n_removed = " << n_removed << " |other = "
-                  << (int)n_loc - (int)n_infected - (int)n_removed << " |"
+        //std::cout << "|time_sys = " << Person::time_sys
+        //          << " |n_infected = " << n_infected
+        //          << " |n_removed = " << n_removed << " |other = "
+        //          << (int)n_loc - (int)n_infected - (int)n_removed << " |"
+        //          << std::endl;
+        std::cout << n_infected << ","
+                  << n_removed << ","
+                  << (int)n_loc - (int)n_infected - (int)n_removed 
                   << std::endl;
         // fprintf(gp, "set term qt 2\n");
-        // fprintf(gp,"%d,%d,%d \n",(int)n_loc-(int)n_infected-(int)n_removed,
-        // n_infected, n_removed);
+	if(n_loop % 30 == 0)
+		fprintf(fp,"%d,%d,%d \n",(int)n_loc-(int)n_infected-(int)n_removed,n_infected, n_removed);
 
         dinfo.decomposeDomainAll(people);
 
@@ -548,6 +562,7 @@ int main(int argc, char *argv[]) {
     }
 
     pclose(gp);
+    fclose(fp);
     PS::Finalize();
     return 0;
 }
