@@ -4,13 +4,14 @@
 #include <random>
 #define DEBUG_LEVEL 0
 #define INDIVISUAL_WALL
-//#define DENSITY_CONTRAST
+#define DENSITY_CONTRAST
+#define RESULT
 constexpr int SEED = 0;
 std::mt19937 RND_ENG(SEED);
 
 constexpr PS::F64 DOMAIN_LENGTH = 1.0;
 constexpr PS::F64 DOMAIN_AREA   = DOMAIN_LENGTH * DOMAIN_LENGTH;
-constexpr PS::S64 N_PEOPLE_GLB = 1000;
+constexpr PS::S64 N_PEOPLE_GLB = 10000;
 //constexpr PS::S64 N_PEOPLE_GLB = 1000;
 constexpr PS::S32 n_infected_init = 3;
 constexpr PS::F64 DENS_IN_DENS_REGION_NOR = 100.0;
@@ -374,18 +375,23 @@ int main(int argc, char *argv[]) {
     PS::Initialize(argc, argv);
     const auto my_rank = PS::Comm::getRank();
     const auto n_proc  = PS::Comm::getNumberOfProc();
+#if defined(RESULT)
     FILE *gp;
-#if defined(DENSITY_CONTRAST)
-    FILE *fp = fopen("excel.csv","w");
-#else
-    FILE *fp = fopen("excel_org.csv","w");
 #endif
+
+#if defined(DENSITY_CONTRAST)
+    //FILE *fp = fopen("excel.csv","w");
+#else
+    //FILE *fp = fopen("excel_org.csv","w");
+#endif
+#if defined(RESULT)
     gp = popen("gnuplot -persist", "w");
     fprintf(gp, "set xyplane 0\n");
     fprintf(gp, "set xrange [0.0:1.0]\n");
     fprintf(gp, "set yrange [0.0:1.0]\n");
     fprintf(gp, "set size square\n");
     fprintf(gp, "rgb(r,g,b)=65536*int(r)+256*int(g)+int(b)\n");
+#endif
 
     PS::ParticleSystem<Person> people;
     people.initialize();
@@ -517,13 +523,17 @@ int main(int argc, char *argv[]) {
         //          << " |n_removed = " << n_removed << " |other = "
         //          << (int)n_loc - (int)n_infected - (int)n_removed << " |"
         //          << std::endl;
-        std::cout << n_infected << ","
-                  << n_removed << ","
-                  << (int)n_loc - (int)n_infected - (int)n_removed 
-                  << std::endl;
+	if(n_loop % 1000 == 0){
+		std::cout << n_infected << ","
+			<< n_removed << ","
+			<< (int)n_loc - (int)n_infected - (int)n_removed << "  "
+			<< "n_loop=" << n_loop << " "
+		        << "time_sys=" << Person::time_sys	
+			<< std::endl;
+	}
         // fprintf(gp, "set term qt 2\n");
-	if(n_loop % 30 == 0)
-		fprintf(fp,"%d,%d,%d \n",(int)n_loc-(int)n_infected-(int)n_removed,n_infected, n_removed);
+	//if(n_loop % 30 == 0)
+	//	fprintf(fp,"%f,%d,%d,%d \n",(double)Person::time_sys,(int)n_loc-(int)n_infected-(int)n_removed,n_infected, n_removed);
 
         dinfo.decomposeDomainAll(people);
 
@@ -533,7 +543,8 @@ int main(int argc, char *argv[]) {
 
         people.exchangeParticle(dinfo);
 
-        if (n_loop % 100 == 0) {
+#if defined(RESULT)
+        if (n_loop % 1000 == 0) {
             // fprintf(gp, "plot '-' using 1:2:3:(rgb($4,$5,$6)) w p pt 7 ps 0.8
             // lc rgb variable\n"); fprintf(gp, "set term qt 1\n");
             fprintf(gp, "plot '-' using 1:2:(rgb($4,$5,$6)) w p pt 7 ps 1.0 lc "
@@ -558,11 +569,14 @@ int main(int argc, char *argv[]) {
             fprintf(gp, "e\n");
             // exit(1);
         }
+#endif
         n_loop++;
     }
 
+#if defined(RESULT)
     pclose(gp);
-    fclose(fp);
+#endif
+    //fclose(fp);
     PS::Finalize();
     return 0;
 }
